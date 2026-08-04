@@ -1,21 +1,57 @@
-# TODO: Functionality to create, read, and write config data.
 import json
+import typer
+from pathlib import Path
+import subprocess
 
-UTILITY_FOLDER = './Utility'
-CONFIG_FILE = 'config.json'
 
-CONFIG = {
-    'UTILITY_FOLDER': UTILITY_FOLDER
+# Constants
+UTILITY_FOLDER_PATH = Path('./umutils')
+CONFIG_FILE_PATH = Path('./umconfig.json')
+UTILITY_SERVICES = 'UTILITY_SERVICES'
+CONFIGS = {
+    UTILITY_SERVICES: []
 }
 
-# Load configurations.
-try:
-    with open(CONFIG_FILE, 'r') as f:
-        CONFIG = json.load(f)
-except FileNotFoundError:
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(CONFIG, f)
-except Exception as e:
-    raise e
+if not CONFIG_FILE_PATH.is_file():
+    with open(CONFIG_FILE_PATH, 'w') as f:
+        json.dump(CONFIGS, f)
 
-# TODO: Implement argument parsing.
+# Load configurations
+try:
+    with open(CONFIG_FILE_PATH, 'r') as f:
+        CONFIGS = json.load(f)
+except FileNotFoundError:
+    print(f'ERROR: file {CONFIG_FILE_PATH} does not exists')
+except Exception as e:
+    print(f'ERROR: {e}')
+    exit(1)
+
+app = typer.Typer()
+
+@app.command()
+def run(name: str):
+    """Use to run the utility services.
+
+    Args:
+        name (str): The name of the utility process to run.
+    """
+    if name not in CONFIGS[UTILITY_SERVICES]:
+        print(f'Service named "{name}" does not exists.')
+        return
+
+    subprocess.run([CONFIG_FILE_PATH / name])
+
+
+@app.command()
+def ls():
+    """Lists the available utility services."""
+    if not CONFIGS[UTILITY_SERVICES]:
+        return
+
+    print('Utility Services:')
+    for s in CONFIGS[UTILITY_SERVICES]:
+        print(f'  {s}')
+
+
+if __name__ == '__main__':
+    app()
