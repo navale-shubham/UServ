@@ -1,10 +1,15 @@
 [project]
 name = "utility-manager"
 version = "0.1.0"
-description = "Add your description here"
+description = "A unified service to execute different Custom Utility Services via CLI."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "pyrefly>=0.60.0",
     "typer>=0.27.1",
+]
+
+[dependency-groups]
+dev = [
+    "auto-py-to-exe>=2.50.1",
+    "pyrefly>=1.2.0",
 ]

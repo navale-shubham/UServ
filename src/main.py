@@ -1,41 +1,24 @@
 import json
 from typing import Any
 import typer
-from pathlib import Path
 import subprocess
 import shutil
-import os
+from pathlib import Path
+
+from paths import UTILITY_FOLDER_PATH, CONFIG_FILE_PATH
+from configs import CONFIG_TEMPLATE
 
 
 # Constants
-UTILITY_FOLDER_PATH = Path('./umutils')
-CONFIG_FILE_PATH = Path('./umconfig.json')
 UTILITY_SERVICES = 'UTILITY_SERVICES'
-CONFIGS: dict[str, Any] = {
-    UTILITY_SERVICES: []
-}
 
+if not CONFIG_FILE_PATH.exists():
+    CONFIG_FILE_PATH.touch()
+    with open(CONFIG_FILE_PATH, 'w') as CONFIG_FILE:
+        json.dump(CONFIG_TEMPLATE, CONFIG_FILE)
 
-# Function to load the configs
-def load_configs():
-    if not CONFIG_FILE_PATH.is_file():
-        with open(CONFIG_FILE_PATH, 'w') as CONFIG_FILE:
-            json.dump(CONFIGS, CONFIG_FILE)
-
-        return CONFIGS
-
-    configs = {}
-
-    try:
-        with open(CONFIG_FILE_PATH, 'r') as f:
-            configs: dict[str, Any] = json.load(f)
-    except FileNotFoundError:
-        print(f'ERROR: file {CONFIG_FILE_PATH} does not exists')
-    except Exception as e:
-        print(f'ERROR: {e}')
-        exit(1)
-
-    return configs
+with open(CONFIG_FILE_PATH, 'r') as CONFIG_FILE:
+    CONFIGS: dict[str, Any] = json.load(CONFIG_FILE)
 
 
 # Function to save the configs
@@ -46,8 +29,6 @@ def update_configs():
     except Exception as e:
         raise e
 
-
-CONFIGS = load_configs()
 
 app = typer.Typer()
 
@@ -77,19 +58,22 @@ def ls():
 
 
 @app.command()
-def add(path: str):
+def add(path: Path):
     """Add a new utility service
 
     Args:
         path (str): The path of the utility service to add.
     """
-    if not path.endswith('.exe'):
-        path = f'{path}.exe'
+    if path.stem in CONFIGS[UTILITY_SERVICES]:
+        print(f'Service with name "{path.stem}" already exists.')
+        return
+
+    path = path.with_suffix('.exe')
 
     shutil.copy(path, UTILITY_FOLDER_PATH)
-    CONFIGS[UTILITY_SERVICES].append(path[:-4])
+    CONFIGS[UTILITY_SERVICES].append(path.stem)
     update_configs()
-    print(f'Service "{path[:-4]}" added successfully.')
+    print(f'Service "{path.stem}" added successfully.')
 
 
 @app.command()
@@ -104,7 +88,7 @@ def remove(name):
         return
 
     try:
-        os.remove(UTILITY_FOLDER_PATH / f'{name}.exe')
+        Path(UTILITY_FOLDER_PATH / f'{name}.exe').unlink()
         CONFIGS[UTILITY_SERVICES].remove(name)
         update_configs()
         print(f'Service "{name}" removed successfully.')
