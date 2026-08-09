@@ -1,101 +1,74 @@
 import json
-from typing import Any
 import typer
-import subprocess
 import shutil
 from pathlib import Path
+from typing import Annotated
 
-from paths import UTILITY_FOLDER_PATH, CONFIG_FILE_PATH
-from configs import CONFIG_TEMPLATE
-
-
-# Constants
-UTILITY_SERVICES = 'UTILITY_SERVICES'
-
-if not CONFIG_FILE_PATH.exists():
-    CONFIG_FILE_PATH.touch()
-    with open(CONFIG_FILE_PATH, 'w') as CONFIG_FILE:
-        json.dump(CONFIG_TEMPLATE, CONFIG_FILE)
-
-with open(CONFIG_FILE_PATH, 'r') as CONFIG_FILE:
-    CONFIGS: dict[str, Any] = json.load(CONFIG_FILE)
+from configs import TOOLS_FOLDER_PATH, TOOL_LIST_FILE_PATH
 
 
-# Function to save the configs
-def update_configs():
+with open(TOOL_LIST_FILE_PATH, 'r') as TOOL_LIST_FILE:
+    TOOL_LIST: list[str] = json.load(TOOL_LIST_FILE)
+
+
+def update_tool_list_file():
     try:
-        with open(CONFIG_FILE_PATH, 'w') as f:
-            json.dump(CONFIGS, f)
+        with open(TOOL_LIST_FILE_PATH, 'w') as TOOL_LIST_FILE:
+            json.dump(TOOL_LIST, TOOL_LIST_FILE)
     except Exception as e:
         raise e
 
 
-app = typer.Typer()
-
-@app.command()
-def run(name: str):
-    """Run utility services
-
-    Args:
-        name (str): The name of the utility process to run.
-    """
-    if name not in CONFIGS[UTILITY_SERVICES]:
-        print(f'Service named "{name}" does not exists.')
-        return
-
-    subprocess.run([UTILITY_FOLDER_PATH / name])
+app = typer.Typer(rich_markup_mode=None, pretty_exceptions_enable=False)
 
 
 @app.command()
-def ls():
-    """List available utility services"""
-    if not CONFIGS[UTILITY_SERVICES]:
+def list():
+    """List available tools"""
+    if not TOOL_LIST:
         return
 
-    print('Utility Services:')
-    for s in CONFIGS[UTILITY_SERVICES]:
+    print('Tools:')
+    for s in TOOL_LIST:
         print(f'  {s}')
 
 
 @app.command()
-def add(path: Path):
-    """Add a new utility service
+def add(
+    name: Annotated[str, typer.Argument(help="The name of the tool.")],
+    path: Annotated[Path, typer.Argument(help="The path of the tool.")]
+    ):
+    """Add a new tool"""
 
-    Args:
-        path (str): The path of the utility service to add.
-    """
-    if path.stem in CONFIGS[UTILITY_SERVICES]:
-        print(f'Service with name "{path.stem}" already exists.')
+    if name in TOOL_LIST:
+        print(f'Tool with the same name already exists.')
         return
 
-    path = path.with_suffix('.exe')
-
-    shutil.copy(path, UTILITY_FOLDER_PATH)
-    CONFIGS[UTILITY_SERVICES].append(path.stem)
-    update_configs()
-    print(f'Service "{path.stem}" added successfully.')
+    shutil.copy(path, (TOOLS_FOLDER_PATH / name).with_suffix('.exe'))
+    TOOL_LIST.append(name)
+    update_tool_list_file()
+    print(f'Tool "{name}" added successfully.')
 
 
 @app.command()
-def remove(name):
-    """Remove an existing utility service
+def remove(
+    name: Annotated[str, typer.Argument(help="The name of the tool.")]
+    ):
+    """Remove an existing tool"""
 
-    Args:
-        name (str): The name of the utility service to remove.
-    """
-    if name not in CONFIGS[UTILITY_SERVICES]:
-        print(f'Service "{name}" does not exists.')
+    if name not in TOOL_LIST:
+        print(f'Tool "{name}" does not exist.')
         return
 
     try:
-        Path(UTILITY_FOLDER_PATH / f'{name}.exe').unlink()
-        CONFIGS[UTILITY_SERVICES].remove(name)
-        update_configs()
-        print(f'Service "{name}" removed successfully.')
+        Path((TOOLS_FOLDER_PATH / name).with_suffix('.exe')).unlink()
+        TOOL_LIST.remove(name)
+        update_tool_list_file()
+        print(f'Tool "{name}" removed successfully.')
     except FileNotFoundError:
-        print(f'Service "{name}" not found, possible cause - UTILITY FOLDER Tampered.')
+        print(f'Tool "{name}" not found, possible cause - UTILITIES FOLDER Tampered.')
     except Exception as e:
-        print(f'Service "{name}" not deleted due to following reason -\n{e}')
+        print(f'Tool "{name}" not deleted due to following reason -\n{e}')
 
 
 if __name__ == '__main__':
